@@ -1,0 +1,65 @@
+# Integración y despliegue continuo (CI/CD):
+# cada push a "main" revisa el código, corre las pruebas y, si todo pasa, publica en GitHub Pages.
+name: CI y despliegue a GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: # permite ejecutarlo a mano desde la pestaña "Actions"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test-y-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Pruebas unitarias (Vitest)
+        run: npm run test:run
+
+      - name: Instalar navegador para Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Pruebas E2E (Playwright)
+        run: npm run test:e2e
+
+      - name: Build de producción
+        run: npm run build
+
+      - name: Subir carpeta dist como artefacto de Pages
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: test-y-build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
