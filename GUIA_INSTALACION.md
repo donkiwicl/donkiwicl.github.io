@@ -8,6 +8,9 @@ terminal (en Windows puedes usar PowerShell o la terminal integrada de VS Code).
 
 > 💡 Si solo quieres **ejecutar** el proyecto ya terminado, ve directo a la [Parte 0](#parte-0--ejecutar-el-proyecto-terminado).
 
+> 🔁 ¿Necesitas las pruebas con **Jasmine + Karma**? Mira la guía espejo:
+> [GUIA_INSTALACION_JASMINE_KARMA.md](GUIA_INSTALACION_JASMINE_KARMA.md).
+
 ---
 
 ## Índice

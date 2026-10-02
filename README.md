@@ -8,6 +8,8 @@ el portafolio de [github.com/donkiwicl](https://github.com/donkiwicl) y una Pok�
 
 👉 **Paso a paso completo (instalación explicada desde cero): [GUIA_INSTALACION.md](./GUIA_INSTALACION.md)**
 
+🔁 Versión espejo de la guía con **Jasmine + Karma** en lugar de Vitest + Playwright: [GUIA_INSTALACION_JASMINE_KARMA.md](./GUIA_INSTALACION_JASMINE_KARMA.md)
+
 ## Uso rápido
 
 ```bash
