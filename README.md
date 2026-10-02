@@ -23,7 +23,8 @@ npm run dev                        # servidor de desarrollo → http://localhost
 | `npm run preview` | Sirve `dist/` localmente para revisarlo |
 | `npm run lint` | Revisa el código con ESLint |
 | `npm test` | Vitest en modo *watch* |
-| `npm run test:run` | Vitest una sola vez (lo usa CI) |
+| `npm run test:run` | Vitest una sola vez |
+| `npm run test:coverage` | Vitest + informe de cobertura en `coverage/` (lo usa CI) |
 | `npm run test:e2e` | Pruebas end-to-end con Playwright |
 | `npm run test:e2e:ui` | Playwright con interfaz visual |
 | `npm run deploy` | Publica `dist/` en la rama `gh-pages` (alternativa manual) |

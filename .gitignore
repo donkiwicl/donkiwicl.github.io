@@ -28,3 +28,6 @@ dist-ssr
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Vitest (informe de cobertura)
+/coverage/
