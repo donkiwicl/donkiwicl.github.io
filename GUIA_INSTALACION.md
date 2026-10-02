@@ -18,7 +18,7 @@ terminal (en Windows puedes usar PowerShell o la terminal integrada de VS Code).
 3. [Entender lo que se generó](#parte-3--entender-lo-que-se-generó)
 4. [Agregar React Router](#parte-4--agregar-react-router)
 5. [Consumir APIs: GitHub y PokeAPI](#parte-5--consumir-apis-github-y-pokeapi)
-6. [Pruebas unitarias con Vitest](#parte-6--pruebas-unitarias-y-de-componentes-con-vitest)
+6. [Pruebas unitarias con Vitest](#parte-6--pruebas-unitarias-y-de-componentes-con-vitest) · [Cobertura](#65-cobertura-de-código-con-vitest)
 7. [Pruebas end-to-end con Playwright](#parte-7--pruebas-end-to-end-con-playwright)
 8. [Preparar el proyecto para GitHub Pages](#parte-8--preparar-el-proyecto-para-github-pages)
 9. [Subir a GitHub y desplegar](#parte-9--subir-a-github-y-desplegar)
@@ -39,6 +39,7 @@ Para verificar que todo funciona:
 ```bash
 npm run lint        # revisa el estilo y errores comunes del código
 npm run test:run    # pruebas unitarias y de componentes (Vitest)
+npm run test:coverage  # las mismas pruebas + informe de cobertura (coverage/index.html)
 npm run test:e2e    # pruebas en navegador real (Playwright)
 npm run build       # genera la versión de producción en dist/
 ```
@@ -321,6 +322,106 @@ npm run test:run
 
 Resultado esperado: `Tests  12 passed (12)`.
 
+### 6.5 Cobertura de código con Vitest
+
+**¿Qué es la cobertura?** Mide **qué partes del código se ejecutaron** mientras corrían las
+pruebas. No dice si las pruebas son *buenas*, pero sí muestra qué código **nadie está probando**.
+
+#### 6.5.1 Instalar el proveedor de cobertura
+
+```bash
+npm install -D @vitest/coverage-v8
+```
+
+| Paquete | Rol |
+| --- | --- |
+| `@vitest/coverage-v8` | Usa el contador de cobertura que trae el motor V8 (el de Node y Chrome). Es rápido y no necesita instrumentar el código. |
+
+> ⚠️ Su versión **debe coincidir** con la de `vitest` (ej: ambas `5.0.x`). Si no, Vitest muestra
+> un error de versiones incompatibles. Compruébalo con `npm ls vitest @vitest/coverage-v8`.
+
+> ℹ️ Si ejecutas `npx vitest run --coverage` sin haber instalado el paquete, Vitest ofrece
+> instalarlo por ti. Mejor hacerlo a mano para que quede en `package.json`.
+
+#### 6.5.2 Configurar — `vite.config.js`
+
+Dentro del bloque `test` agregamos `coverage`:
+
+```js
+test: {
+  // ...environment, globals, setupFiles, include
+  coverage: {
+    provider: 'v8',
+    reporter: ['text', 'html', 'lcov'],   // terminal, página web y formato estándar
+    include: ['src/**/*.{js,jsx}'],        // medimos todo src/ (aunque ningún test lo importe)
+    exclude: ['src/**/*.test.{js,jsx}', 'src/test/**', 'src/main.jsx'],
+    thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 },
+  },
+},
+```
+
+| Opción | Por qué |
+| --- | --- |
+| `reporter` | `text` imprime la tabla en la terminal; `html` genera `coverage/index.html` para navegar archivo por archivo; `lcov` lo entienden VS Code, SonarQube, Codecov, etc. |
+| `include` | Sin esto, solo aparecen los archivos que algún test importó; un archivo **sin ninguna prueba** pasaría inadvertido. |
+| `exclude` | No tiene sentido medir los propios tests, los mocks de `src/test/` ni `main.jsx` (solo monta la app en el DOM real). |
+| `thresholds` | **Mínimos obligatorios**: si la cobertura baja del 80 %, el comando termina con error y el CI se detiene. |
+
+Además desactivamos el React Compiler **solo durante las pruebas**:
+
+```js
+plugins: [
+  react(),
+  !process.env.VITEST && babel({ presets: [reactCompilerPreset()] }),
+],
+```
+
+**¿Por qué?** El compilador reescribe cada componente con condiciones internas de caché
+(`if ($[0] !== props) …`). La cobertura las contaría como ramas "no probadas" aunque no las
+escribimos nosotros, y el porcentaje de *Branches* bajaría artificialmente. Vitest define la
+variable `VITEST` al ejecutarse, así que `npm run dev` y `npm run build` siguen usando el compilador.
+
+#### 6.5.3 Script en `package.json`
+
+```json
+"test:coverage": "vitest run --coverage"
+```
+
+#### 6.5.4 Ejecutar y leer el informe
+
+```bash
+npm run test:coverage
+```
+
+Al final aparece una tabla como esta (los archivos al 100 % se omiten para que sea más corta):
+
+```
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   94.44 |    85.45 |   91.11 |    97.4 |
+  Pokedex.jsx      |   82.35 |    83.33 |   57.14 |   86.66 | 61-65
+```
+
+| Columna | Qué mide |
+| --- | --- |
+| **Stmts** (sentencias) | Instrucciones ejecutadas al menos una vez. |
+| **Branch** (ramas) | Cada camino de un `if`, `? :`, `&&`, `||`… ¿se probaron ambos lados? |
+| **Funcs** (funciones) | Funciones que se llamaron al menos una vez. |
+| **Lines** (líneas) | Líneas ejecutadas. |
+| **Uncovered Line #s** | Líneas exactas que ninguna prueba ejecutó: **por ahí empezar a escribir tests**. |
+
+Para verlo con colores, abre en el navegador `coverage/index.html`: las líneas en **rojo** no se
+ejecutaron, en **amarillo** solo se probó una de las ramas.
+
+> 💡 También puedes ver la cobertura en modo *watch*: `npx vitest --coverage`, o con la interfaz
+> de la extensión **Vitest** de VS Code (botón *Run with Coverage*).
+
+La carpeta `coverage/` se regenera en cada ejecución, por eso está en `.gitignore` y en los
+`globalIgnores` de `eslint.config.js` (si no, ESLint revisaría los `.js` del informe).
+
+> 🎯 **100 % no es la meta.** Un 80–90 % con pruebas que verifican comportamiento real vale más
+> que un 100 % logrado con tests que solo "pasan por" el código sin comprobar nada.
+
 ---
 
 ## Parte 7 · Pruebas end-to-end con Playwright
@@ -408,12 +509,26 @@ haces `git push`. Nuestro workflow:
 
 1. `npm ci` → instala dependencias exactamente como dice `package-lock.json`.
 2. `npm run lint` → si hay errores de código, se detiene.
-3. `npm run test:run` → pruebas Vitest.
+3. `npm run test:coverage` → pruebas Vitest + cobertura (falla si baja de los mínimos).
+   El informe se guarda como artefacto descargable del run (sección **Artifacts** → `coverage`).
 4. `npx playwright install --with-deps chromium` y `npm run test:e2e` → pruebas E2E.
+   El informe HTML, las capturas y (si algo falla) videos y trazas se guardan en el artefacto
+   `playwright-report`.
 5. `npm run build` → genera `dist/`.
 6. Sube `dist/` y lo **publica en GitHub Pages**.
 
 Si **cualquier** paso falla, el sitio **no** se actualiza: nunca se publica código roto.
+
+**Evidencia de las pruebas (artefactos).** Cada ejecución guarda dos artefactos que se descargan
+desde la página del run (pestaña **Actions** → el run → sección **Artifacts**):
+
+| Artefacto | Contenido | Cómo verlo |
+| --- | --- | --- |
+| `coverage` | Informe de cobertura de Vitest | Descomprime y abre `index.html`. |
+| `playwright-report` | Informe HTML de Playwright, capturas de cada prueba y, si algo falló, video y traza | Descomprime y ejecuta `npx playwright show-report playwright-report`. Las trazas (`trace.zip`) se abren en <https://trace.playwright.dev>. |
+
+Se suben **aunque las pruebas fallen** (`if: ${{ !cancelled() }}`), justamente para poder
+investigar el error, y se conservan **30 días** (`retention-days: 30`); después GitHub los borra.
 
 ### 8.3 Probar el build localmente (recomendado antes de subir)
 
@@ -509,6 +624,8 @@ Luego en **Settings → Pages → Source** elige **Deploy from a branch**, rama 
 | Playwright: `Executable doesn't exist` | Falta el navegador | `npx playwright install chromium` |
 | Playwright: `port 4173 is already in use` | Quedó un `npm run preview` abierto | Ciérralo con Ctrl + C o reinicia la terminal. |
 | Portafolio muestra "Error 403" | Límite de 60 peticiones/hora de la API de GitHub | Espera ~1 hora o prueba desde otra red. |
+| `Coverage for branches (…%) does not meet global threshold (80%)` | La cobertura bajó del mínimo configurado | Agrega pruebas para las líneas de *Uncovered Line #s* (o revisa `coverage/index.html`). |
+| `Failed to load url @vitest/coverage-v8` / versiones incompatibles | Falta el paquete o no coincide con `vitest` | `npm install -D @vitest/coverage-v8@<versión de vitest>` |
 | ESLint: `'process' is not defined` | Archivo de Node revisado con globals de navegador | Revisa el bloque `globals.node` en `eslint.config.js`. |
 
 ---
@@ -521,6 +638,7 @@ cd dsy1104-donkiwi
 npm install
 npm install react-router
 npm install -D vitest jsdom @testing-library/react @testing-library/jest-dom @testing-library/user-event
+npm install -D @vitest/coverage-v8
 npm install -D @playwright/test gh-pages
 npx playwright install chromium
 ```

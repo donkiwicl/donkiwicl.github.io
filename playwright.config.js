@@ -6,10 +6,15 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  reporter: process.env.CI ? 'github' : 'list',
+  // Además del reporte en consola, se genera un informe HTML en playwright-report/
+  // (en CI se sube como artefacto de GitHub Actions como evidencia de las pruebas).
+  reporter: [[process.env.CI ? 'github' : 'list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:4173',
     trace: 'on-first-retry',
+    // Evidencia: captura al final de cada prueba y video solo cuando una falla.
+    screenshot: 'on',
+    video: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   // Playwright compila la app y levanta `vite preview` antes de correr las pruebas.

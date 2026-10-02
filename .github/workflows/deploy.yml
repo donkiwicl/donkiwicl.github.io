@@ -34,14 +34,35 @@ jobs:
       - name: Lint (ESLint)
         run: npm run lint
 
-      - name: Pruebas unitarias (Vitest)
-        run: npm run test:run
+      - name: Pruebas unitarias y cobertura (Vitest)
+        run: npm run test:coverage
+
+      - name: Subir informe de cobertura
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Instalar navegador para Playwright
         run: npx playwright install --with-deps chromium
 
       - name: Pruebas E2E (Playwright)
         run: npm run test:e2e
+
+      # Evidencia de Playwright: informe HTML + capturas, videos y trazas (se sube aunque fallen las pruebas).
+      - name: Subir evidencia de Playwright
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Build de producción
         run: npm run build
